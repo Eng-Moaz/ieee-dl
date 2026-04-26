@@ -9,6 +9,7 @@
 # Python Cache
 __pycache__/
 *.pyc
+.idea/
 
 # Environment
 .env
