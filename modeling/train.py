@@ -4,7 +4,7 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.tensorboard import SummaryWriter
 
-from models.config import config
+from config import config
 
 
 def train(
@@ -107,7 +107,7 @@ def train(
 
 
 if __name__ == "__main__":
-    from models.model import FERModel
+    from modeling.model import FERModel
 
     model = FERModel()
 
