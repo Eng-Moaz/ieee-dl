@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.optim import Adam
+from torch.optim import Adam, AdamW
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.tensorboard import SummaryWriter
 
@@ -23,7 +23,7 @@ def train(
 
     criterion = nn.CrossEntropyLoss()
 
-    optimizer = Adam(
+    optimizer = AdamW(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=lr
     )

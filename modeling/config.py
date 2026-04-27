@@ -23,6 +23,7 @@ class Config:
     phase2_epochs: int   = 15
     phase2_lr:     float = 1e-5
 
+
     # General training
     batch_size:   int   = 32
     num_workers:  int   = 2
