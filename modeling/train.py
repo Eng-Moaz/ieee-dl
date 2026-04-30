@@ -25,7 +25,12 @@ def train(
     model = model.to(device)
 
     print("Calculating class weights for Focal Loss...")
-    labels = [s[1] for s in train_loader.dataset.samples]
+    if hasattr(train_loader.dataset, 'dataset') and hasattr(train_loader.dataset, 'indices'):
+        all_targets = train_loader.dataset.dataset.targets
+        labels = [all_targets[i] for i in train_loader.dataset.indices]
+    else:
+        labels = [s[1] for s in train_loader.dataset.samples]
+        
     class_counts = np.bincount(labels, minlength=config.num_classes)
     weights = 1.0 / (class_counts + 1e-6)
     weights = weights * config.num_classes / np.sum(weights)
