@@ -25,8 +25,8 @@ class Config:
 
 
     # General training
-    batch_size:   int   = 32
-    num_workers:  int   = 2
+    batch_size:   int   = 64
+    num_workers:  int   = 12
     lr_step_size: int   = 10
     lr_gamma:     float = 0.5
 
@@ -46,7 +46,7 @@ class Config:
     def raw_data_dir(self) -> Path:
         if self.is_kaggle:
             return Path('/kaggle/input/datasets/fahadullaha/facial-emotion-recognition-dataset/processed_data')
-        return Path(__file__).parent.parent / 'data' 
+        return Path(__file__).parent.parent / 'data' / 'processed_data'
 
 
     @property
