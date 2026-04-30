@@ -61,17 +61,6 @@ class Config:
         path.mkdir(exist_ok=True)
         return path
 
-    # Evaluation results directory
-    @property
-    def eval_results_dir(self) -> Path:
-        path = self.log_dir / 'evaluation'
-        path.mkdir(exist_ok=True)
-        return path
-
-    # Number of target classes
-    @property
-    def num_classes(self) -> int:
-        return len(self.emotion_labels)
     @property
     def device(self) -> str:
         return 'cuda' if torch.cuda.is_available() else 'cpu'

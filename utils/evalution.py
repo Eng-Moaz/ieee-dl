@@ -1,27 +1,23 @@
 import torch
-import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
 from sklearn.preprocessing import label_binarize
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
-from pathlib import Path
 
 # 1. Project Modules Import
 from modeling.config import config
 from modeling.model import FERModel
 
 # 2. Global Constants from Config
+DEVICE = config.device
 CLASSES = config.emotion_labels
 NUM_CLASSES = config.num_classes
-OUTPUT_DIR = config.eval_results_dir
+OUTPUT_DIR = config.log_dir
 
 # --- FUNCTIONS ---
 
-def get_real_test_loader():
-    """Setup data loader for actual test images"""
+"""def get_real_test_loader():
     test_transforms = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
@@ -36,6 +32,8 @@ def get_real_test_loader():
 
     test_dataset = datasets.ImageFolder(root=str(test_path), transform=test_transforms)
     return DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
+"""
+
 
 def run_evaluation(model, data_loader):
     """Execute model inference and collect raw results"""
@@ -106,19 +104,19 @@ def main():
     model.load_state_dict(torch.load(checkpoint_path, map_location=DEVICE))
 
     # 2. Initialize real data loader
-    test_loader = get_real_test_loader()
+    # test_loader = get_real_test_loader()
     
-    if test_loader is None:
+    """if test_loader is None:
         print("[!] Execution stopped: DataLoader not ready.")
-        return
+        return"""
 
     # 3. Step-by-step evaluation pipeline
     print("[*] Running inference...")
-    y_true, y_pred, y_probs = run_evaluation(model, test_loader)
+    #y_true, y_pred, y_probs = run_evaluation(model, test_loader)
 
     # 4. Generate results and save to the files
     print("[*] Visualizing results...")
-    plot_all(y_true, y_pred, y_probs)
+    #plot_all(y_true, y_pred, y_probs)
 
     print(f"\n[DONE] All outputs saved in: {OUTPUT_DIR}")
 
