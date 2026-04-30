@@ -1,45 +1,37 @@
-import os
 import torch
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, random_split
 
-class CustomData(Dataset):
-    """ dataset class to load images from directory """
-    def __init__(self, path):
-        self.path = path
-        # get classes from folder names
-        self.classes = sorted(os.listdir(path))
-        self.data = []
-        
-        # save all img paths and their labels
-        for y, c in enumerate(self.classes):
-            c_path = os.path.join(path, c)
-            if os.path.isdir(c_path):
-                for img in os.listdir(c_path):
-                    self.data.append((os.path.join(c_path, img), y))
-                    
-        # basic image transforms
-        self.tf = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor()
-        ])
+def get_data_loaders(data_dir, batch_size=32):
+    """ create train, val, and test loaders using ImageFolder """
+    
+    # 1. Data Augmentation & Transforms
+    data_transforms = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(15),     
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) 
+    ])
 
-    def __len__(self):
-        """ return total number of samples """
-        return len(self.data)
+    # 2. Load dataset using PyTorch's built-in ImageFolder 
+    full_dataset = datasets.ImageFolder(root=data_dir, transform=data_transforms)
 
-    def __getitem__(self, i):
-        """ return one sample (image, label) """
-        p, y = self.data[i]
-        
-        # open image in rgb mode
-        x = Image.open(p).convert('RGB')
-        x = self.tf(x)
-        
-        return x, y
+    # 3. Split data into Train (70%), Val (15%), Test (15%)
+    total_size = len(full_dataset)
+    train_size = int(0.7 * total_size)
+    val_size = int(0.15 * total_size)
+    test_size = total_size - train_size - val_size
 
-def get_loader(path, bs=32):
-    """ create and return dataloader """
-    ds = CustomData(path)
-    return DataLoader(ds, batch_size=bs, shuffle=True)
+    train_dataset, val_dataset, test_dataset = random_split(
+        full_dataset, 
+        [train_size, val_size, test_size],
+        generator=torch.Generator().manual_seed(42) 
+    )
+
+    # 4. Create DataLoaders for each split
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    return train_loader, val_loader, test_loader
