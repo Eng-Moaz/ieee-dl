@@ -116,7 +116,7 @@ def main():
     print("[*] Running inference...")
     y_true, y_pred, y_probs = run_evaluation(model, test_loader)
 
-    # 4. Generate results and save to files
+    # 4. Generate results and save to the files
     print("[*] Visualizing results...")
     plot_all(y_true, y_pred, y_probs)
 
