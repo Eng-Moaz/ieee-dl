@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import models
-from config import config
+from modeling.config import config
 
 
 class FERModel(nn.Module):

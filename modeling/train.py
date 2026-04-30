@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
-from torch.optim import Adam, AdamW
+from torch.optim import AdamW
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.tensorboard import SummaryWriter
 
-from config import config
+from modeling.config import config
 
 
 def train(
@@ -108,14 +108,17 @@ def train(
 
 if __name__ == "__main__":
     from modeling.model import FERModel
+    from preprocessing.data_loaders import get_data_loaders
 
     model = FERModel()
 
-    # train_loader, val_loader, _ = get_loaders()
+    train_loader, val_loader, _ = get_data_loaders(config.raw_data_dir, config.batch_size)
 
     # Phase 1: train only the head (backbone frozen)
-    # train(model, train_loader, val_loader, epochs=config.phase1_epochs, lr=config.phase1_lr)
+    print("--- Phase 1: Training Head ---")
+    train(model, train_loader, val_loader, epochs=config.phase1_epochs, lr=config.phase1_lr)
 
     # Phase 2: unfreeze backbone and fine-tune everything with a tiny LR
-    # model.unfreeze_backbone()
-    # train(model, train_loader, val_loader, epochs=config.phase2_epochs, lr=config.phase2_lr)
+    print("--- Phase 2: Fine-tuning Backbone ---")
+    model.unfreeze_backbone()
+    train(model, train_loader, val_loader, epochs=config.phase2_epochs, lr=config.phase2_lr)

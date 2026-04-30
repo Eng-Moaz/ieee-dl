@@ -2,12 +2,14 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pathlib import Path
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
 from sklearn.preprocessing import label_binarize
 
 # 1. Project Modules Import
 from modeling.config import config
 from modeling.model import FERModel
+from preprocessing.data_loaders import get_data_loaders
 
 # 2. Global Constants from Config
 DEVICE = config.device
@@ -16,24 +18,6 @@ NUM_CLASSES = config.num_classes
 OUTPUT_DIR = config.log_dir
 
 # --- FUNCTIONS ---
-
-"""def get_real_test_loader():
-    test_transforms = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-    
-    test_path = config.raw_data_dir / 'test'
-    
-    if not test_path.exists():
-        print(f"[!] Warning: Test path not found at {test_path}")
-        return None
-
-    test_dataset = datasets.ImageFolder(root=str(test_path), transform=test_transforms)
-    return DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
-"""
-
 
 def run_evaluation(model, data_loader):
     """Execute model inference and collect raw results"""
@@ -101,22 +85,22 @@ def main():
 
     print(f"[*] Loading FERModel weights from: {checkpoint_path}")
     model = FERModel().to(DEVICE)
-    model.load_state_dict(torch.load(checkpoint_path, map_location=DEVICE))
+    model.load_state_dict(torch.load(checkpoint_path, map_location=DEVICE, weights_only=True))
 
     # 2. Initialize real data loader
-    # test_loader = get_real_test_loader()
+    _, _, test_loader = get_data_loaders(config.raw_data_dir, config.batch_size)
     
-    """if test_loader is None:
+    if test_loader is None:
         print("[!] Execution stopped: DataLoader not ready.")
-        return"""
+        return
 
     # 3. Step-by-step evaluation pipeline
     print("[*] Running inference...")
-    #y_true, y_pred, y_probs = run_evaluation(model, test_loader)
+    y_true, y_pred, y_probs = run_evaluation(model, test_loader)
 
     # 4. Generate results and save to the files
     print("[*] Visualizing results...")
-    #plot_all(y_true, y_pred, y_probs)
+    plot_all(y_true, y_pred, y_probs)
 
     print(f"\n[DONE] All outputs saved in: {OUTPUT_DIR}")
 
