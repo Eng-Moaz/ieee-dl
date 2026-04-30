@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 from modeling.config import config
 
@@ -41,7 +42,8 @@ def train(
         train_correct = 0
         train_total = 0
 
-        for images, labels in train_loader:
+        train_pbar = tqdm(train_loader, desc=f"Epoch [{epoch:02d}/{epochs}] Train", leave=False)
+        for images, labels in train_pbar:
             images = images.to(device)
             labels = labels.to(device)
 
@@ -56,6 +58,8 @@ def train(
             preds = logits.argmax(dim=1)
             train_correct += (preds == labels).sum().item()
             train_total   += labels.size(0)
+            
+            train_pbar.set_postfix({'loss': loss.item()})
 
         avg_train_loss = train_loss / train_total
         avg_train_acc  = train_correct / train_total
@@ -66,7 +70,8 @@ def train(
         val_total = 0
 
         with torch.no_grad():
-            for images, labels in val_loader:
+            val_pbar = tqdm(val_loader, desc=f"Epoch [{epoch:02d}/{epochs}] Val  ", leave=False)
+            for images, labels in val_pbar:
                 images = images.to(device)
                 labels = labels.to(device)
 
@@ -77,6 +82,8 @@ def train(
                 preds        = logits.argmax(dim=1)
                 val_correct += (preds == labels).sum().item()
                 val_total   += labels.size(0)
+                
+                val_pbar.set_postfix({'loss': loss.item()})
 
         avg_val_loss = val_loss / val_total
         avg_val_acc  = val_correct / val_total
