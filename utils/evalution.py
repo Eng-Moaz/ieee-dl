@@ -14,7 +14,6 @@ from modeling.config import config
 from modeling.model import FERModel
 
 # 2. Global Constants from Config
-DEVICE = config.device
 CLASSES = config.emotion_labels
 NUM_CLASSES = config.num_classes
 OUTPUT_DIR = config.eval_results_dir
