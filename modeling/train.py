@@ -49,7 +49,6 @@ def train(
     writer = SummaryWriter(log_dir=log_dir)
 
     best_val_acc = 0.0
-    best_val_loss = float('inf')
     epochs_no_improve = 0
 
     for epoch in range(1, epochs + 1):
@@ -120,16 +119,13 @@ def train(
 
         if avg_val_acc > best_val_acc:
             best_val_acc = avg_val_acc
+            epochs_no_improve = 0
             torch.save(model.state_dict(), save_path)
             print(f"  New best model saved ({avg_val_acc*100:.1f}%)")
-
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            epochs_no_improve = 0
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= config.early_stopping_patience:
-                print(f"\nEarly stopping triggered: No improvement in validation loss for {config.early_stopping_patience} epochs.")
+                print(f"\nEarly stopping triggered: No improvement in validation accuracy for {config.early_stopping_patience} epochs.")
                 break
 
     writer.close()

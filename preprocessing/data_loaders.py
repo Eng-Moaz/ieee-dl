@@ -1,6 +1,7 @@
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Subset
+from sklearn.model_selection import train_test_split
 from modeling.config import config
 
 def get_data_loaders(data_dir, batch_size=32):
@@ -25,23 +26,38 @@ def get_data_loaders(data_dir, batch_size=32):
     train_full_dataset = datasets.ImageFolder(root=data_dir, transform=train_transforms)
     eval_full_dataset = datasets.ImageFolder(root=data_dir, transform=eval_transforms)
 
-    # 3. Split data into Train (70%), Val (15%), Test (15%)
+    # 3. Split data into Train (70%), Val (15%), Test (15%) using Stratified Splitting
     total_size = len(train_full_dataset)
-    train_size = int(config.train_ratio * total_size)
-    val_size = int(config.val_ratio * total_size)
-    test_size = total_size - train_size - val_size
-
-    # Generate indices for the split using the config seed
-    indices = torch.randperm(total_size, generator=torch.Generator().manual_seed(config.split_seed)).tolist()
+    targets = train_full_dataset.targets
     
-    train_indices = indices[:train_size]
-    val_indices = indices[train_size:train_size + val_size]
-    test_indices = indices[train_size + val_size:]
+    # Calculate proportions
+    test_val_ratio = config.val_ratio + config.test_ratio
+    test_ratio_relative = config.test_ratio / test_val_ratio
+
+    # First split: Train vs Temp (Val + Test)
+    train_indices, temp_indices = train_test_split(
+        range(total_size),
+        test_size=test_val_ratio,
+        random_state=config.split_seed,
+        stratify=targets
+    )
+
+    # Get targets for the temp split to stratify again
+    temp_targets = [targets[i] for i in temp_indices]
+
+    # Second split: Val vs Test
+    val_indices, test_indices = train_test_split(
+        temp_indices,
+        test_size=test_ratio_relative,
+        random_state=config.split_seed,
+        stratify=temp_targets
+    )
 
     # Apply indices to the datasets with correct transforms
     train_dataset = Subset(train_full_dataset, train_indices)
     val_dataset = Subset(eval_full_dataset, val_indices)
     test_dataset = Subset(eval_full_dataset, test_indices)
+
 
     # 4. Create DataLoaders for each split
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=config.num_workers)
