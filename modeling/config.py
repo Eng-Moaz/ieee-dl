@@ -16,19 +16,20 @@ class Config:
     img_size:    int   = 224
 
     # Phase 1
-    phase1_epochs: int   = 15
+    phase1_epochs: int   = 50
     phase1_lr:     float = 1e-3
 
     # Phase 2
-    phase2_epochs: int   = 15
+    phase2_epochs: int   = 50
     phase2_lr:     float = 1e-5
 
 
     # General training
     batch_size:   int   = 64
     num_workers:  int   = 12
-    lr_step_size: int   = 10
-    lr_gamma:     float = 0.5
+    focal_gamma:  float = 2.0
+    lr_patience:  int   = 3
+    early_stopping_patience: int = 7
 
     # Data split
     train_ratio: float = 0.70

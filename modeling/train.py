@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+import numpy as np
 
 from modeling.config import config
+from modeling.losses import FocalLoss
 
 
 def train(
@@ -22,19 +24,32 @@ def train(
 
     model = model.to(device)
 
-    criterion = nn.CrossEntropyLoss()
+    print("Calculating class weights for Focal Loss...")
+    if hasattr(train_loader.dataset, 'dataset') and hasattr(train_loader.dataset, 'indices'):
+        all_targets = train_loader.dataset.dataset.targets
+        labels = [all_targets[i] for i in train_loader.dataset.indices]
+    else:
+        labels = [s[1] for s in train_loader.dataset.samples]
+        
+    class_counts = np.bincount(labels, minlength=config.num_classes)
+    weights = 1.0 / (class_counts + 1e-6)
+    weights = weights * config.num_classes / np.sum(weights)
+    alpha = torch.tensor(weights, dtype=torch.float32).to(device)
+
+    criterion = FocalLoss(alpha=alpha, gamma=config.focal_gamma)
 
     optimizer = AdamW(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=lr
     )
 
-    scheduler = StepLR(optimizer, step_size=config.lr_step_size, gamma=config.lr_gamma)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=config.lr_patience, factor=0.5)
 
     log_dir = str(config.log_dir)
     writer = SummaryWriter(log_dir=log_dir)
 
     best_val_acc = 0.0
+    epochs_no_improve = 0
 
     for epoch in range(1, epochs + 1):
         model.train()
@@ -88,8 +103,8 @@ def train(
         avg_val_loss = val_loss / val_total
         avg_val_acc  = val_correct / val_total
 
-        scheduler.step()
-        current_lr = scheduler.get_last_lr()[0]
+        scheduler.step(avg_val_loss)
+        current_lr = optimizer.param_groups[0]['lr']
 
         print(
             f"Epoch [{epoch:02d}/{epochs}]  "
@@ -104,8 +119,14 @@ def train(
 
         if avg_val_acc > best_val_acc:
             best_val_acc = avg_val_acc
+            epochs_no_improve = 0
             torch.save(model.state_dict(), save_path)
             print(f"  New best model saved ({avg_val_acc*100:.1f}%)")
+        else:
+            epochs_no_improve += 1
+            if epochs_no_improve >= config.early_stopping_patience:
+                print(f"\nEarly stopping triggered: No improvement in validation accuracy for {config.early_stopping_patience} epochs.")
+                break
 
     writer.close()
     print(f"\nTraining complete. Best val accuracy: {best_val_acc*100:.1f}%")
@@ -128,4 +149,4 @@ if __name__ == "__main__":
     # Phase 2: unfreeze backbone and fine-tune everything with a tiny LR
     print("--- Phase 2: Fine-tuning Backbone ---")
     model.unfreeze_backbone()
-    train(model, train_loader, val_loader, epochs=config.phase2_epochs, lr=config.phase2_lr)
+    train(model, train_loader, val_loader, epochs=config.phase2_epochs, lr=config.phase2_lr)
