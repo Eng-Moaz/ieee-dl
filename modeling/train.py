@@ -1,3 +1,17 @@
+"""
+Training loop for the Facial Emotion Recognition pipeline.
+
+Supports both phases of the two-phase transfer-learning strategy:
+  - Phase 1: Head-only training with the ResNet-50 backbone frozen.
+  - Phase 2: Full fine-tuning with the backbone unfrozen.
+
+Class weights are derived from the training set label distribution and fed
+into :class:`~modeling.losses.FocalLoss` to mitigate class imbalance.
+A :class:`~torch.optim.lr_scheduler.ReduceLROnPlateau` scheduler adjusts the
+learning rate based on validation loss, and early stopping halts training when
+validation accuracy ceases to improve.
+"""
+
 import torch
 import torch.nn as nn
 from torch.optim import AdamW
@@ -17,6 +31,21 @@ def train(
     epochs=None,
     lr=None,
 ):
+    """Train ``model`` for one phase and save the best checkpoint.
+
+    Class weights are computed from the training split at the start of each
+    call, so this function can be invoked independently for Phase 1 and Phase 2
+    without any state leaking between phases.
+
+    Args:
+        model: The :class:`~modeling.model.FERModel` instance to train.
+        train_loader: DataLoader for the training split.
+        val_loader: DataLoader for the validation split.
+        epochs: Number of epochs to run.  Defaults to ``None`` (must be
+            supplied by the caller).
+        lr: Initial learning rate passed to AdamW.  Defaults to ``None``
+            (must be supplied by the caller).
+    """
     save_path = str(config.checkpoint_dir / "best_model.pth")
 
     device = config.device
@@ -30,7 +59,7 @@ def train(
         labels = [all_targets[i] for i in train_loader.dataset.indices]
     else:
         labels = [s[1] for s in train_loader.dataset.samples]
-        
+
     class_counts = np.bincount(labels, minlength=config.num_classes)
     weights = 1.0 / (class_counts + 1e-6)
     weights = weights * config.num_classes / np.sum(weights)
@@ -52,6 +81,9 @@ def train(
     epochs_no_improve = 0
 
     for epoch in range(1, epochs + 1):
+        # ------------------------------------------------------------------ #
+        # Training step
+        # ------------------------------------------------------------------ #
         model.train()
         train_loss = 0.0
         train_correct = 0
@@ -73,12 +105,15 @@ def train(
             preds = logits.argmax(dim=1)
             train_correct += (preds == labels).sum().item()
             train_total   += labels.size(0)
-            
+
             train_pbar.set_postfix({'loss': loss.item()})
 
         avg_train_loss = train_loss / train_total
         avg_train_acc  = train_correct / train_total
 
+        # ------------------------------------------------------------------ #
+        # Validation step
+        # ------------------------------------------------------------------ #
         model.eval()
         val_loss = 0.0
         val_correct = 0
@@ -97,7 +132,7 @@ def train(
                 preds        = logits.argmax(dim=1)
                 val_correct += (preds == labels).sum().item()
                 val_total   += labels.size(0)
-                
+
                 val_pbar.set_postfix({'loss': loss.item()})
 
         avg_val_loss = val_loss / val_total
@@ -117,6 +152,9 @@ def train(
         writer.add_scalars("Accuracy", {"train": avg_train_acc, "val": avg_val_acc}, epoch)
         writer.add_scalar("LR", current_lr, epoch)
 
+        # ------------------------------------------------------------------ #
+        # Checkpoint and early stopping
+        # ------------------------------------------------------------------ #
         if avg_val_acc > best_val_acc:
             best_val_acc = avg_val_acc
             epochs_no_improve = 0
@@ -142,11 +180,9 @@ if __name__ == "__main__":
 
     train_loader, val_loader, _ = get_data_loaders(config.raw_data_dir, config.batch_size)
 
-    # Phase 1: train only the head (backbone frozen)
     print("--- Phase 1: Training Head ---")
     train(model, train_loader, val_loader, epochs=config.phase1_epochs, lr=config.phase1_lr)
 
-    # Phase 2: unfreeze backbone and fine-tune everything with a tiny LR
     print("--- Phase 2: Fine-tuning Backbone ---")
     model.unfreeze_backbone()
     train(model, train_loader, val_loader, epochs=config.phase2_epochs, lr=config.phase2_lr)
